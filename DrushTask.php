@@ -6,6 +6,9 @@
  */
 require_once "phing/Task.php";
 
+/**
+ * Class DrushParam.
+ */
 class DrushParam {
 
   private $value;
@@ -20,6 +23,9 @@ class DrushParam {
 
 }
 
+/**
+ * Class DrushOption.
+ */
 class DrushOption {
 
   private $name;
@@ -41,7 +47,7 @@ class DrushOption {
     return $this->value;
   }
 
-  public function toString() {
+  public function __toString() {
     $name  = $this->getName();
     $value = $this->getValue();
     $str = '--'.$name;
@@ -53,24 +59,75 @@ class DrushOption {
 
 }
 
+/**
+ * Class DrushTask.
+ */
 class DrushTask extends Task {
 
   /**
-   * The message passed in the buildfile.
+   * The message passed in the build file.
    */
   private $command = array();
-  private $bin = NULL;
-  private $uri = NULL;
-  private $root = NULL;
+
+  /**
+   * @var string
+   */
+  private $bin = '';
+
+  /**
+   * @var string
+   */
+  private $uri = '';
+
+  /**
+   * @var string
+   */
+  private $root = '';
+
+  /**
+   * @var bool|null
+   */
   private $assume = NULL;
+
+  /**
+   * @var bool
+   */
   private $simulate = FALSE;
+
+  /**
+   * @var bool
+   */
   private $pipe = FALSE;
+
+  /**
+   * @var DrushOption[]
+   */
   private $options = array();
+
+  /**
+   * @var DrushParam[]
+   */
   private $params = array();
-  private $return_glue = "\n";
-  private $return_property = NULL;
+
+  /**
+   * @var string
+   */
+  private $returnGlue = "\n";
+
+  /**
+   * @var string
+   */
+  private $returnProperty = NULL;
+
+  /**
+   * @var bool
+   */
   private $verbose = FALSE;
-  private $haltonerror = TRUE;
+
+  /**
+   * @var bool
+   */
+  private $haltOnError = TRUE;
 
   /**
    * The Drush command to run.
@@ -139,25 +196,25 @@ class DrushTask extends Task {
    * The 'glue' characters used between each line of the returned output.
    */
   public function setReturnGlue($str) {
-    $this->return_glue = (string) $str;
+    $this->returnGlue = (string) $str;
   }
 
   /**
    * The name of a Phing property to assign the Drush command's output to.
    */
   public function setReturnProperty($str) {
-    $this->return_property = $str;
+    $this->returnProperty = $str;
   }
 
   /**
-   * The name of a Phing property to assign the Drush command's output to.
+   * @param string $var
    */
-  public function setHaltonerror($var) {
+  public function setHaltOnError($var) {
     if (is_string($var)) {
       $var = strtolower($var);
-      $this->haltonerror = ($var === 'yes' || $var === 'true');
+      $this->haltOnError = ($var === 'yes' || $var === 'true');
     } else {
-      $this->haltonerror = !!$var;
+      $this->haltOnError = !!$var;
     }
   }
 
@@ -251,34 +308,65 @@ class DrushTask extends Task {
     }
 
     foreach ($this->options as $option) {
-      $command[] = $option->toString();
+      $command[] = (string) $option;
     }
 
     $command[] = $this->command;
 
-    foreach ($this->params as $param) {
-      $command[] = $param->getValue();
+    $original_directory = NULL;
+    if ($this->command === 'make') {
+      $original_directory = getcwd();
+
+      $make_file = array_shift($this->params);
+      $drupal_root = array_shift($this->params);
+
+      if ($make_file) {
+        $command[] = $make_file->getValue();
+      }
+
+      if ($drupal_root) {
+        if (file_exists($drupal_root->getValue())) {
+          chdir($drupal_root->getValue());
+        }
+        else {
+          $command[] = $drupal_root->getValue();
+        }
+      }
+    }
+    else {
+      foreach ($this->params as $param) {
+        $command[] = $param->getValue();
+      }
     }
 
     $command = implode(' ', $command);
 
     // Execute Drush.
     $this->log("Executing '$command'...");
+    $error_code = 0;
     $output = array();
-    exec($command, $output, $return);
+    exec($command, $output, $error_code);
+
+    if ($original_directory) {
+      chdir($original_directory);
+    }
+
     // Collect Drush output for display through Phing's log.
     foreach ($output as $line) {
       $this->log($line);
     }
+
     // Set value of the 'pipe' property.
-    if (!empty($this->return_property)) {
-      $this->getProject()->setProperty($this->return_property, implode($this->return_glue, $output));
+    if (!empty($this->returnProperty)) {
+      $this->getProject()->setProperty($this->returnProperty, implode($this->returnGlue, $output));
     }
+
     // Build fail.
-    if ($this->haltonerror && $return != 0) {
-      throw new BuildException("Drush exited with code $return");
+    if ($this->haltOnError && $error_code != 0) {
+      throw new BuildException("Drush exited with code $error_code");
     }
-    return $return != 0;
+
+    return $error_code != 0;
   }
 
 }
