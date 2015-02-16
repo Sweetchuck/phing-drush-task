@@ -130,6 +130,11 @@ class DrushTask extends Task {
   private $haltOnError = TRUE;
 
   /**
+   * @var string
+   */
+  protected $cwd = '';
+
+  /**
    * The Drush command to run.
    */
   public function setCommand($str) {
@@ -216,6 +221,17 @@ class DrushTask extends Task {
     } else {
       $this->haltOnError = !!$var;
     }
+  }
+
+  /**
+   * @param string $value
+   *
+   * @return $this
+   */
+  public function setDir($value) {
+    $this->cwd = $value;
+
+    return $this;
   }
 
   /**
@@ -313,30 +329,8 @@ class DrushTask extends Task {
 
     $command[] = $this->command;
 
-    $original_directory = NULL;
-    if ($this->command === 'make') {
-      $original_directory = getcwd();
-
-      $make_file = array_shift($this->params);
-      $drupal_root = array_shift($this->params);
-
-      if ($make_file) {
-        $command[] = $make_file->getValue();
-      }
-
-      if ($drupal_root) {
-        if (file_exists($drupal_root->getValue())) {
-          chdir($drupal_root->getValue());
-        }
-        else {
-          $command[] = $drupal_root->getValue();
-        }
-      }
-    }
-    else {
-      foreach ($this->params as $param) {
-        $command[] = $param->getValue();
-      }
+    foreach ($this->params as $param) {
+      $command[] = $param->getValue();
     }
 
     $command = implode(' ', $command);
@@ -345,6 +339,13 @@ class DrushTask extends Task {
     $this->log("Executing '$command'...");
     $error_code = 0;
     $output = array();
+
+    $original_directory = NULL;
+    if ($this->cwd) {
+      $original_directory = getcwd();
+      chdir($this->cwd);
+    }
+
     exec($command, $output, $error_code);
 
     if ($original_directory) {
