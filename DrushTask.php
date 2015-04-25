@@ -121,6 +121,11 @@ class DrushTask extends Task
     /**
      * @var string
      */
+    protected $alias = '';
+
+    /**
+     * @var string
+     */
     protected $uri = '';
 
     /**
@@ -196,6 +201,16 @@ class DrushTask extends Task
     public function setBin($value)
     {
         $this->bin = $value;
+    }
+
+    /**
+     * Name of the Drush alias without the leading @ character.
+     *
+     * @param string $value
+     */
+    public function setAlias($value)
+    {
+        $this->alias = $value;
     }
 
     /**
@@ -365,6 +380,10 @@ class DrushTask extends Task
         $command = array();
 
         $command[] = !empty($this->bin) ? $this->bin : 'drush';
+
+        if ($this->alias) {
+          $command[] = '@' . $this->alias;
+        }
 
         $option = new DrushOption();
         $option->setName('nocolor');
