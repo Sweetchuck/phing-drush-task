@@ -136,6 +136,11 @@ class DrushTask extends Task
     /**
      * @var bool|null
      */
+    protected $ansi = NULL;
+
+    /**
+     * @var bool|null
+     */
     protected $assume = NULL;
 
     /**
@@ -221,6 +226,21 @@ class DrushTask extends Task
     public function setUri($value)
     {
         $this->uri = $value;
+    }
+
+    /**
+     * Adds --ansi or --no-ansi
+     *
+     * @param bool $value
+     */
+    public function setAnsi($value)
+    {
+        if (is_string($value)) {
+            $this->ansi = ($value === 'yes');
+        }
+        else {
+            $this->ansi = !!$value;
+        }
     }
 
     /**
@@ -385,10 +405,6 @@ class DrushTask extends Task
           $command[] = '@' . $this->alias;
         }
 
-        $option = new DrushOption();
-        $option->setName('nocolor');
-        $this->options[] = $option;
-
         if (!empty($this->root)) {
             $option = new DrushOption();
             $option->setName('root');
@@ -400,6 +416,12 @@ class DrushTask extends Task
             $option = new DrushOption();
             $option->setName('uri');
             $option->addText($this->uri);
+            $this->options[] = $option;
+        }
+
+        if (is_bool($this->ansi)) {
+            $option = new DrushOption();
+            $option->setName(($this->ansi ? 'ansi' : 'no-ansi'));
             $this->options[] = $option;
         }
 
